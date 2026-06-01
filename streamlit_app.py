@@ -120,14 +120,16 @@ def generate_sample_data() -> pd.DataFrame:
         vendor = np.random.choice(vendors)
         priority = np.random.choice(priorities, p=priority_weights)
         created = base + pd.Timedelta(hours=np.random.randint(0, 2000))
-        # Critical tickets sometimes breach SLA (>4 hrs)
+        
+        # MODIFIED: Critical and general tickets can now generate massive long-tail delays extending up to a full week
         if priority == "Critical":
             hours = np.random.choice(
-                [np.random.uniform(0.5, 4), np.random.uniform(4.1, 24)],
+                [np.random.uniform(0.5, 4), np.random.uniform(4.1, 200)],  # Expanded range up to 200 hours
                 p=[0.45, 0.55],
             )
         else:
-            hours = np.random.uniform(1, 48)
+            hours = np.random.uniform(1, 200)  # Expanded non-critical baseline up to 200 hours
+            
         resolved = created + pd.Timedelta(hours=hours)
         rows.append({
             "Vendor_Name": vendor,
@@ -163,8 +165,9 @@ with st.sidebar:
 
     uploaded_file = st.file_uploader("Upload vendor_logs.csv", type=["csv"])
 
+    # MODIFIED: Extended max_value from 24.0 to 200.0 and stepped by 1.0 hr for smooth navigation over long ranges
     sla_limit = st.slider(
-        "SLA Threshold (hours)", min_value=1.0, max_value=24.0, value=4.0, step=0.5
+        "SLA Threshold (hours)", min_value=1.0, max_value=200.0, value=4.0, step=1.0
     )
 
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
