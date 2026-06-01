@@ -121,14 +121,14 @@ def generate_sample_data() -> pd.DataFrame:
         priority = np.random.choice(priorities, p=priority_weights)
         created = base + pd.Timedelta(hours=np.random.randint(0, 2000))
         
-        # MODIFIED: Critical and general tickets can now generate massive long-tail delays extending up to a full week
+        # MODIFIED: Generates severe backlogs across all categories spanning up to 200 hours (over a week)
         if priority == "Critical":
             hours = np.random.choice(
-                [np.random.uniform(0.5, 4), np.random.uniform(4.1, 200)],  # Expanded range up to 200 hours
+                [np.random.uniform(0.5, 4), np.random.uniform(4.1, 200)],
                 p=[0.45, 0.55],
             )
         else:
-            hours = np.random.uniform(1, 200)  # Expanded non-critical baseline up to 200 hours
+            hours = np.random.uniform(1, 200)
             
         resolved = created + pd.Timedelta(hours=hours)
         rows.append({
@@ -153,9 +153,8 @@ def process_data(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_sla_breaches(df: pd.DataFrame, sla_threshold: float = 4.0) -> pd.DataFrame:
-    return df[
-        (df["Priority"] == "Critical") & (df["Resolution_Hours"] > sla_threshold)
-    ].copy()
+    # MODIFIED: Removed strict Critical filter so ALL categories exceeding the threshold appear
+    return df[df["Resolution_Hours"] > sla_threshold].copy()
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -165,7 +164,7 @@ with st.sidebar:
 
     uploaded_file = st.file_uploader("Upload vendor_logs.csv", type=["csv"])
 
-    # MODIFIED: Extended max_value from 24.0 to 200.0 and stepped by 1.0 hr for smooth navigation over long ranges
+    # MODIFIED: Scaled slider to 200 hours to handle long, multi-day, or week-long backlogs easily
     sla_limit = st.slider(
         "SLA Threshold (hours)", min_value=1.0, max_value=200.0, value=4.0, step=1.0
     )
@@ -179,7 +178,7 @@ with st.sidebar:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.markdown(
         '<span style="font-size:0.7rem;color:#555;font-family:\'IBM Plex Mono\',monospace;">'
-        "SLA BREACH MONITOR v1.0<br>Critical Priority · Resolution > Threshold</span>",
+        "SLA BREACH MONITOR v1.0<br>All Priority Categories · Resolution > Threshold</span>",
         unsafe_allow_html=True,
     )
 
@@ -217,7 +216,7 @@ st.markdown(
 )
 st.markdown(
     f'<p style="color:#666;font-size:0.85rem;font-family:\'IBM Plex Mono\',monospace;margin-top:4px;">'
-    f'Critical Priority · Resolution > {sla_limit}h threshold'
+    f'Cross-Category Performance · Resolution > {sla_limit}h threshold'
     f'{"&nbsp;&nbsp;|&nbsp;&nbsp;<span style=\'color:#ff9900\'>⚠ Using generated sample data</span>" if using_sample else ""}'
     f"</p>",
     unsafe_allow_html=True,
@@ -249,11 +248,12 @@ with col3:
         unsafe_allow_html=True,
     )
 with col4:
-    total_critical = len(df[df["Priority"] == "Critical"])
-    breach_rate = (len(breach_df) / total_critical * 100) if total_critical else 0
+    # MODIFIED: Dynamically maps the overall systemic breach rate across all ticket sets
+    total_tickets = len(df)
+    breach_rate = (len(breach_df) / total_tickets * 100) if total_tickets else 0
     st.markdown(
         f'<div class="metric-card"><div class="metric-value">{breach_rate:.0f}%</div>'
-        '<div class="metric-label">Critical Breach Rate</div></div>',
+        '<div class="metric-label">Overall Breach Rate</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -299,7 +299,7 @@ else:
             linecolor="#2a2a2a",
         ),
         yaxis=dict(
-            title="# Critical SLA Breaches",
+            title="# SLA Breaches (All Categories)",
             title_font=dict(size=11, color="#555", family="IBM Plex Mono"),
             tickfont=dict(size=11, color="#888"),
             gridcolor="#1a1a1a",
